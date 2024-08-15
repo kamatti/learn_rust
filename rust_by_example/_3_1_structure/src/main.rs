@@ -1,11 +1,3 @@
-#[derive(Debug)]
-struct Person {
-    name: String,
-    age: u8,
-}
-
-struct Pair(i32, f32);
-
 #[derive(PartialEq)]
 struct Point {
     x: f32,
@@ -21,13 +13,16 @@ struct Rectangle {
 // 演習1
 // Rectangleの面積を計算
 fn rect_area(rect: Rectangle) -> f32 {
-    return 0.0;
+    let Rectangle { top_left: Point { x: x1, y: y1}, bottom_right: Point { x: x2, y: y2}} = rect;
+
+    return (x2 - x1) * (y1 - y2);
 }
 
 // 演習2
 // pointを左下の座標とする幅と高さがlengthとなるRectangleを生成
 fn square(point: Point, length: f32) -> Rectangle {
-    return Rectangle{ top_left: Point { x: 0.0, y: 1.0}, bottom_right: Point { x: 1.0, y: 0.0}};
+    let Point { x: left_x, y: bottom_y } = point;
+    return Rectangle { top_left: Point { x: left_x, y: bottom_y + length}, bottom_right: Point { x: left_x + length, y: bottom_y} };
 }
 
 fn main() {
@@ -56,6 +51,8 @@ fn main() {
     std::assert!(rect_area(b) == 10.0);
     std::assert!(rect_area(c) == 11.04);
 
+    println!("passing test of rect_area");
+
     // 3*3の正方形
     // 座標は全て自然数
     let d = Rectangle {
@@ -76,8 +73,9 @@ fn main() {
         bottom_right: Point { x: 1.5, y: 0.0}
     };
 
+    // squareの動作確認
     std::assert!(square(Point{ x: 0.0, y: 0.0 }, 3.0) == d);
     std::assert!(square(Point{ x: -1.0, y: -2.0 }, 3.0) == e);
     std::assert!(square(Point{ x: 0.0, y: 0.0 }, 1.5) == f);
-    
+    println!("passing test of square");
 }
