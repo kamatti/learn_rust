@@ -12,7 +12,12 @@ struct PositiveNonzeroInteger(u64);
 impl PositiveNonzeroInteger {
     fn new(value: i64) -> Result<Self, CreationError> {
         // TODO: This function shouldn't always return an `Ok`.
-        Ok(Self(value as u64))
+        // Ok(Self(value as u64))
+        match value {
+            0 => Err(CreationError::Zero),
+            0.. => Ok(Self(value as u64)),
+            ..0 => Err(CreationError::Negative),
+        }
     }
 }
 
