@@ -5,8 +5,11 @@ edition = "2021"
 
 [dependencies]
 clap = "2.33"
+pretty_assertions = "1.4.1"
 
 [dev-dependencies]
+anyhow = "1.0.89"
 assert_cmd = "2"
 predicates = "2"
+pretty_assertions = "1.4.1"
 rand = "0.8"
