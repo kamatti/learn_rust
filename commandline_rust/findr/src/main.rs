@@ -53,20 +53,20 @@ fn run(args: Args) -> Result<()> {
                 EntryType::File => entry.file_type().is_file(),
             })
     };
+
+    let matched = |names: &Vec<Regex>, entry: &DirEntry| {
+        names.is_empty()
+            || names
+                .iter()
+                .any(|name| name.is_match(&entry.file_name().to_string_lossy()))
+    };
+
     for path in args.paths {
         for entry in WalkDir::new(path) {
             match entry {
                 Err(e) => eprintln!("{}", e),
                 Ok(entry) => {
-                    if !args.names.is_empty() {
-                        for name in &args.names {
-                            if name.is_match(entry.file_name().to_str().unwrap()) {
-                                if included(&args.entry_types, &entry) {
-                                    println!("{}", entry.path().display());
-                                }
-                            }
-                        }
-                    } else {
+                    if matched(&args.names, &entry) {
                         if included(&args.entry_types, &entry) {
                             println!("{}", entry.path().display());
                         }
