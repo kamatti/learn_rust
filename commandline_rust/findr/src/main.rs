@@ -53,59 +53,25 @@ fn run(args: Args) -> Result<()> {
                     if !args.names.is_empty() {
                         for name in &args.names {
                             if name.is_match(entry.file_name().to_str().unwrap()) {
-                                if !args.entry_types.is_empty() {
-                                    for etype in &args.entry_types {
-                                        match etype {
-                                            EntryType::Dir => {
-                                                if entry.file_type().is_dir() {
-                                                    println!("{}", entry.path().display());
-                                                    break;
-                                                }
-                                            }
-                                            EntryType::File => {
-                                                if entry.file_type().is_file() {
-                                                    println!("{}", entry.path().display());
-                                                    break;
-                                                }
-                                            }
-                                            EntryType::Link => {
-                                                if entry.file_type().is_symlink() {
-                                                    println!("{}", entry.path().display());
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
+                                if args.entry_types.is_empty()
+                                    || args.entry_types.iter().any(|entry_type| match entry_type {
+                                        EntryType::Dir => entry.file_type().is_dir(),
+                                        EntryType::File => entry.file_type().is_file(),
+                                        EntryType::Link => entry.file_type().is_symlink(),
+                                    })
+                                {
                                     println!("{}", entry.path().display());
                                 }
                             }
                         }
                     } else {
-                        if !args.entry_types.is_empty() {
-                            for etype in &args.entry_types {
-                                match etype {
-                                    EntryType::Dir => {
-                                        if entry.file_type().is_dir() {
-                                            println!("{}", entry.path().display());
-                                            break;
-                                        }
-                                    }
-                                    EntryType::File => {
-                                        if entry.file_type().is_file() {
-                                            println!("{}", entry.path().display());
-                                            break;
-                                        }
-                                    }
-                                    EntryType::Link => {
-                                        if entry.file_type().is_symlink() {
-                                            println!("{}", entry.path().display());
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
+                        if args.entry_types.is_empty()
+                            || args.entry_types.iter().any(|entry_type| match entry_type {
+                                EntryType::Dir => entry.file_type().is_dir(),
+                                EntryType::File => entry.file_type().is_file(),
+                                EntryType::Link => entry.file_type().is_symlink(),
+                            })
+                        {
                             println!("{}", entry.path().display());
                         }
                     }
