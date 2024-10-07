@@ -102,7 +102,7 @@ fn open(filename: &str) -> Result<Box<dyn BufRead>> {
     }
 }
 
-pub fn count(mut file: impl BufRead) -> Result<FileInfo> {
+pub fn count(file: impl BufRead) -> Result<FileInfo> {
     // 1行ずつ読み込んで数え上げないと巨大なファイルを扱えないかも？
     // read_lineで一行ずつ読み込んで数え上げようとしてもファイルが一行だったらだめ？
     let bytes = file.bytes().collect::<Result<Vec<_>, _>>()?;
