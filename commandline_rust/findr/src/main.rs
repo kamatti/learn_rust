@@ -45,6 +45,14 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
+    let included = |etypes: &Vec<EntryType>, entry: &DirEntry| {
+        etypes.is_empty()
+            || etypes.iter().any(|etypes| match etypes {
+                EntryType::Link => entry.file_type().is_symlink(),
+                EntryType::Dir => entry.file_type().is_dir(),
+                EntryType::File => entry.file_type().is_file(),
+            })
+    };
     for path in args.paths {
         for entry in WalkDir::new(path) {
             match entry {
@@ -53,25 +61,13 @@ fn run(args: Args) -> Result<()> {
                     if !args.names.is_empty() {
                         for name in &args.names {
                             if name.is_match(entry.file_name().to_str().unwrap()) {
-                                if args.entry_types.is_empty()
-                                    || args.entry_types.iter().any(|entry_type| match entry_type {
-                                        EntryType::Dir => entry.file_type().is_dir(),
-                                        EntryType::File => entry.file_type().is_file(),
-                                        EntryType::Link => entry.file_type().is_symlink(),
-                                    })
-                                {
+                                if included(&args.entry_types, &entry) {
                                     println!("{}", entry.path().display());
                                 }
                             }
                         }
                     } else {
-                        if args.entry_types.is_empty()
-                            || args.entry_types.iter().any(|entry_type| match entry_type {
-                                EntryType::Dir => entry.file_type().is_dir(),
-                                EntryType::File => entry.file_type().is_file(),
-                                EntryType::Link => entry.file_type().is_symlink(),
-                            })
-                        {
+                        if included(&args.entry_types, &entry) {
                             println!("{}", entry.path().display());
                         }
                     }
