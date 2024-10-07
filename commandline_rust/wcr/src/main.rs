@@ -103,19 +103,15 @@ fn open(filename: &str) -> Result<Box<dyn BufRead>> {
 }
 
 pub fn count(mut file: impl BufRead) -> Result<FileInfo> {
-    let mut num_bytes = 0usize;
-    let mut num_chars = 0usize;
-    let mut num_lines = 0usize;
-    let mut num_words = 0usize;
-
     // 1行ずつ読み込んで数え上げないと巨大なファイルを扱えないかも？
     // read_lineで一行ずつ読み込んで数え上げようとしてもファイルが一行だったらだめ？
     let bytes = file.bytes().collect::<Result<Vec<_>, _>>()?;
     let utf8_bytes = String::from_utf8_lossy(&bytes);
-    num_bytes = utf8_bytes.bytes().count();
-    num_chars = utf8_bytes.chars().count();
-    num_words = utf8_bytes.split_whitespace().count();
-    num_lines = utf8_bytes.split_terminator('\n').count();
+
+    let num_bytes = utf8_bytes.bytes().count();
+    let num_chars = utf8_bytes.chars().count();
+    let num_words = utf8_bytes.split_whitespace().count();
+    let num_lines = utf8_bytes.split_terminator('\n').count();
 
     Ok(FileInfo {
         num_bytes,
