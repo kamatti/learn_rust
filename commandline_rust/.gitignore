@@ -1,2 +1,7 @@
 __cli_rust_examples/
 
+target/
+debug/
+Cargo.lock
+**/*.rs.bk
+*.pdb
