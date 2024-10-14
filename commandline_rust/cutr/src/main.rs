@@ -5,7 +5,7 @@ use regex::Regex;
 use std::{
     fs::File,
     io::{self, BufRead, BufReader},
-    num::NonZeroUsize,
+    num::{NonZero, NonZeroUsize, ParseIntError},
     ops::Range,
 };
 
@@ -64,43 +64,42 @@ fn open(filename: &str) -> Result<Box<dyn BufRead>> {
 }
 
 fn parse_pos(range: String) -> Result<PositionList> {
-    // unimplemented!();
-    let mut ranges: Vec<Range<usize>> = vec![];
-
-    // "+"とalphabetが含まれてたらエラーにする
-    let error_regex = Regex::new(r"[+[:alpha:]]+")?;
-    // if error_regex.is_match(&range) {
-    //     bail!("illegal list value: \"{}\"", range);
-    // }
+    if range.is_empty() {
+        bail!("");
+    }
+    let err_msg = |x| format!(r#"illegal list value: "{x}""#);
+    let valid_pattern = Regex::new(r"^(?<first>\d+)(-(?<second>\d+))?$").unwrap();
+    let mut ranges = vec![];
 
     for splitted in range.split(',') {
-        if error_regex.is_match(splitted) {
-            bail!("illegal list value: \"{}\"", splitted);
-        }
-        if splitted.contains('-') {
-            let mut sub = splitted.split('-');
-            let (Some(pre), Some(later), None) = (sub.next(), sub.next(), sub.next()) else {
-                bail!("illegal list value: \"{}\"", splitted);
-            };
-            let pre = pre.parse::<usize>()?;
-            let later = later.parse::<usize>()?;
-            if pre == 0 {
-                bail!("illegal list value: \"{}\"", pre);
-            } else if pre >= later {
-                // bail!("illegal list value: \"{}\"", splitted);
-                bail!(
-                    "First number in range ({}) must be lower than second number ({})",
-                    pre,
-                    later
-                )
+        if let Some(caps) = valid_pattern.captures(splitted) {
+            let first = caps.name("first").unwrap();
+            if let Some(second) = caps.name("second") {
+                // exist both "first" and "second"
+                match (
+                    first.as_str().parse::<NonZeroUsize>(),
+                    second.as_str().parse::<NonZeroUsize>(),
+                ) {
+                    (Ok(f), Ok(s)) if f < s => ranges.push(f.get() - 1..s.get()),
+                    (Ok(f), Ok(s)) if f >= s => bail!(
+                        "First number in range ({}) must be lower than second number ({})",
+                        f,
+                        s
+                    ),
+                    (Err(_), _) => bail!(err_msg("0")),
+                    (_, _) => bail!(err_msg(splitted)),
+                }
+            } else {
+                // exist only "first"
+                if let Ok(first) = first.as_str().parse::<NonZeroUsize>() {
+                    let f = first.get();
+                    ranges.push(f - 1..f);
+                } else {
+                    bail!(err_msg("0"));
+                }
             }
-            ranges.push(pre - 1..later);
         } else {
-            let num = splitted.parse::<usize>()?;
-            if num == 0 {
-                bail!("illegal list value: \"{}\"", num);
-            }
-            ranges.push(num - 1..num);
+            bail!(err_msg(splitted));
         }
     }
 
