@@ -1,13 +1,15 @@
 use anyhow::{anyhow, bail, Result};
 use clap::Parser;
 use csv::{ReaderBuilder, StringRecord, WriterBuilder};
-use regex::Regex;
+use regex::{bytes, Regex};
 use std::{
+    borrow::Borrow,
     fs::File,
     io::{self, BufRead, BufReader},
     num::{NonZero, NonZeroUsize, ParseIntError},
     ops::Range,
 };
+use unicode_segmentation::UnicodeSegmentation;
 
 type PositionList = Vec<Range<usize>>;
 
@@ -52,7 +54,25 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    println!("{:#?}", args);
+    if args.delimiter.len() != 1 {
+        bail!("--delim \"{}\" must be a single byte", args.delimiter);
+    }
+    let delimiter: u8 = *args.delimiter.as_bytes().first().unwrap();
+
+    let extract = match (args.extract.fields, args.extract.bytes, args.extract.chars) {
+        (Some(fields), None, None) => Extract::Fields(parse_pos(fields)?),
+        (None, Some(bytes), None) => Extract::Bytes(parse_pos(bytes)?),
+        (None, None, Some(chars)) => Extract::Chars(parse_pos(chars)?),
+        _ => bail!("Must have --fields, --bytes, or -- chars"),
+    };
+
+    for filename in args.files {
+        match open(&filename) {
+            Err(e) => eprint!("{}: {}", filename, e),
+            Ok(_file) => {}
+        }
+    }
+
     Ok(())
 }
 
@@ -63,11 +83,40 @@ fn open(filename: &str) -> Result<Box<dyn BufRead>> {
     }
 }
 
+fn extract_chars(line: &str, char_pos: &[Range<usize>]) -> String {
+    let mut res = String::from("");
+    let chars: Vec<&str> = line.graphemes(true).collect();
+    for pos in char_pos {
+        if let Some(ch) = chars.get(pos.clone()) {
+            res.push_str(ch.concat().as_str());
+        }
+    }
+
+    res
+}
+
+fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
+    let mut res = String::from("");
+    let bytes: Vec<u8> = line.bytes().collect();
+    for pos in byte_pos {
+        if let Some(bytes) = bytes.get(pos.clone()) {
+            res.push_str(String::from_utf8_lossy(bytes).as_ref());
+        }
+    }
+
+    res
+}
+
+fn extract_fields() {
+    unimplemented!()
+}
+
 fn parse_pos(range: String) -> Result<PositionList> {
     if range.is_empty() {
         bail!("");
     }
     let err_msg = |x| format!(r#"illegal list value: "{x}""#);
+    // 有効な範囲指定: \d+(-\d+)?
     let valid_pattern = Regex::new(r"^(?<first>\d+)(-(?<second>\d+))?$").unwrap();
     let mut ranges = vec![];
 
@@ -108,8 +157,7 @@ fn parse_pos(range: String) -> Result<PositionList> {
 
 #[cfg(test)]
 mod unit_tests {
-    // use super::{extract_bytes, extract_chars, extract_fields, parse_pos};
-    use super::parse_pos;
+    use super::{extract_bytes, extract_chars, extract_fields, parse_pos};
     use csv::StringRecord;
     use pretty_assertions::assert_eq;
 
@@ -241,23 +289,23 @@ mod unit_tests {
     //     assert_eq!(extract_fields(&rec, &[1..2, 0..1]), &["Sham", "Captain"]);
     // }
 
-    // #[test]
-    // fn test_extract_chars() {
-    //     assert_eq!(extract_chars("", &[0..1]), "".to_string());
-    //     assert_eq!(extract_chars("ábc", &[0..1]), "á".to_string());
-    //     assert_eq!(extract_chars("ábc", &[0..1, 2..3]), "ác".to_string());
-    //     assert_eq!(extract_chars("ábc", &[0..3]), "ábc".to_string());
-    //     assert_eq!(extract_chars("ábc", &[2..3, 1..2]), "cb".to_string());
-    //     assert_eq!(extract_chars("ábc", &[0..1, 1..2, 4..5]), "áb".to_string());
-    // }
+    #[test]
+    fn test_extract_chars() {
+        assert_eq!(extract_chars("", &[0..1]), "".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1]), "á".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1, 2..3]), "ác".to_string());
+        assert_eq!(extract_chars("ábc", &[0..3]), "ábc".to_string());
+        assert_eq!(extract_chars("ábc", &[2..3, 1..2]), "cb".to_string());
+        assert_eq!(extract_chars("ábc", &[0..1, 1..2, 4..5]), "áb".to_string());
+    }
 
-    // #[test]
-    // fn test_extract_bytes() {
-    //     assert_eq!(extract_bytes("ábc", &[0..1]), "�".to_string());
-    //     assert_eq!(extract_bytes("ábc", &[0..2]), "á".to_string());
-    //     assert_eq!(extract_bytes("ábc", &[0..3]), "áb".to_string());
-    //     assert_eq!(extract_bytes("ábc", &[0..4]), "ábc".to_string());
-    //     assert_eq!(extract_bytes("ábc", &[3..4, 2..3]), "cb".to_string());
-    //     assert_eq!(extract_bytes("ábc", &[0..2, 5..6]), "á".to_string());
-    // }
+    #[test]
+    fn test_extract_bytes() {
+        assert_eq!(extract_bytes("ábc", &[0..1]), "�".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..2]), "á".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..3]), "áb".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..4]), "ábc".to_string());
+        assert_eq!(extract_bytes("ábc", &[3..4, 2..3]), "cb".to_string());
+        assert_eq!(extract_bytes("ábc", &[0..2, 5..6]), "á".to_string());
+    }
 }
