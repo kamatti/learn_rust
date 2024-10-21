@@ -75,11 +75,13 @@ fn run(args: Args) -> Result<()> {
                         .delimiter(delimiter)
                         .has_headers(false)
                         .from_reader(file);
-                    for line in rdr.records() {
-                        println!(
-                            "{}",
-                            extract_fields(&line?, pos).join(str::from_utf8(&[delimiter]).unwrap())
-                        );
+
+                    let mut wdr = csv::WriterBuilder::new()
+                        .delimiter(delimiter)
+                        .from_writer(io::stdout());
+
+                    for record in rdr.records() {
+                        wdr.write_record(extract_fields(&record?, pos))?;
                     }
                 }
                 Extract::Bytes(pos) => {
