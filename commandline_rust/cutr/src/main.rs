@@ -1,12 +1,12 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use clap::Parser;
-use csv::{ReaderBuilder, StringRecord, WriterBuilder};
-use regex::{bytes, Regex};
+use core::str;
+use csv::StringRecord;
+use regex::Regex;
 use std::{
-    borrow::Borrow,
     fs::File,
     io::{self, BufRead, BufReader},
-    num::{NonZero, NonZeroUsize, ParseIntError},
+    num::NonZeroUsize,
     ops::Range,
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -69,7 +69,30 @@ fn run(args: Args) -> Result<()> {
     for filename in args.files {
         match open(&filename) {
             Err(e) => eprint!("{}: {}", filename, e),
-            Ok(_file) => {}
+            Ok(file) => match &extract {
+                Extract::Fields(pos) => {
+                    let mut rdr = csv::ReaderBuilder::new()
+                        .delimiter(delimiter)
+                        .has_headers(false)
+                        .from_reader(file);
+                    for line in rdr.records() {
+                        println!(
+                            "{}",
+                            extract_fields(&line?, pos).join(str::from_utf8(&[delimiter]).unwrap())
+                        );
+                    }
+                }
+                Extract::Bytes(pos) => {
+                    for line in file.lines() {
+                        println!("{}", extract_bytes(&line?, pos));
+                    }
+                }
+                Extract::Chars(pos) => {
+                    for line in file.lines() {
+                        println!("{}", extract_chars(&line?, pos));
+                    }
+                }
+            },
         }
     }
 
@@ -107,8 +130,18 @@ fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
     res
 }
 
-fn extract_fields() {
-    unimplemented!()
+fn extract_fields(line: &StringRecord, field_pos: &[Range<usize>]) -> Vec<String> {
+    let mut res: Vec<String> = vec![];
+
+    for pos in field_pos {
+        for pos in pos.start..pos.end {
+            if let Some(field) = line.get(pos) {
+                res.push(field.to_string());
+            }
+        }
+    }
+
+    res
 }
 
 fn parse_pos(range: String) -> Result<PositionList> {
@@ -279,15 +312,15 @@ mod unit_tests {
         assert_eq!(res.unwrap(), vec![14..15, 18..20]);
     }
 
-    // #[test]
-    // fn test_extract_fields() {
-    //     let rec = StringRecord::from(vec!["Captain", "Sham", "12345"]);
-    //     assert_eq!(extract_fields(&rec, &[0..1]), &["Captain"]);
-    //     assert_eq!(extract_fields(&rec, &[1..2]), &["Sham"]);
-    //     assert_eq!(extract_fields(&rec, &[0..1, 2..3]), &["Captain", "12345"]);
-    //     assert_eq!(extract_fields(&rec, &[0..1, 3..4]), &["Captain"]);
-    //     assert_eq!(extract_fields(&rec, &[1..2, 0..1]), &["Sham", "Captain"]);
-    // }
+    #[test]
+    fn test_extract_fields() {
+        let rec = StringRecord::from(vec!["Captain", "Sham", "12345"]);
+        assert_eq!(extract_fields(&rec, &[0..1]), &["Captain"]);
+        assert_eq!(extract_fields(&rec, &[1..2]), &["Sham"]);
+        assert_eq!(extract_fields(&rec, &[0..1, 2..3]), &["Captain", "12345"]);
+        assert_eq!(extract_fields(&rec, &[0..1, 3..4]), &["Captain"]);
+        assert_eq!(extract_fields(&rec, &[1..2, 0..1]), &["Sham", "Captain"]);
+    }
 
     #[test]
     fn test_extract_chars() {
